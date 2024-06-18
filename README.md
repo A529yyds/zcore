@@ -31,4 +31,4 @@ We welcome contributions in all forms! If you have any suggestions, bug reports,
 
 ## License
 
-This project is licensed under the [Apache License 2.0](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
