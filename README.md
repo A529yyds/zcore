@@ -8,6 +8,8 @@
 
 Zcore is an open-source tool designed to help users easily deploy and monitor clusters. With this tool, users can quickly deploy and monitor their applications or services without the need to understand complex cluster management and monitoring systems.
 
+https://www.zxoud.com/zcore
+
 ## Features
 
 - **Simplicity**: Designed for ease of use, even non-technical users can easily deploy and monitor clusters.
