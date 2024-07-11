@@ -1,0 +1,28 @@
+{
+	"zlink": {
+		"compiler": "g++",
+		"libs": {
+			"libunwind": "1.8.1",
+			"libzmq": "4.3.5",
+			"mimalloc": "2.1",
+			"postgresql": "7.9.0"
+		},
+		"codes": {
+			"hiredis": {
+				"url": "https://github.com/redis/hiredis.git",
+				"version": "1.2.0"
+			},
+			"libczmq": {
+				"url": "https://github.com/zeromq/czmq.git",
+				"version": "4.2.1"
+			},
+			"glog": {
+				"url": "https://github.com/google/glog.git",
+				"version": "0.7.0"
+			}
+		},
+		"os": "archLinux",
+		"version": "1.0.0",
+		"address": "https://github.com/ZXOUD-OWNER/zlink.git"
+	}
+}
