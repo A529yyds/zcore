@@ -37,6 +37,7 @@ public:
      * @param {string} path - installed path
      */
     void pathCallback(std::string path);
+    void freeSession();
 
 private:
     bool _bRemote;
@@ -47,19 +48,6 @@ private:
     ExecSingleton();
     ~ExecSingleton()
     {
-        // disconnect and release the SSH session
-        if (_sshSession)
-        {
-            try
-            {
-                ssh_disconnect(_sshSession);
-                ssh_free(_sshSession);
-            }
-            catch (const std::exception &e)
-            {
-                LOG(ERROR) << e.what() << '\n';
-            }
-        }
     }
     ExecSingleton(const ExecSingleton &copy) = delete;
     ExecSingleton &operator=(const ExecSingleton &other) = delete;

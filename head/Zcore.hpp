@@ -3,19 +3,16 @@
  * @copyright (c) HK ZXOUD LIMITED https://www.zxoud.com
  * Author: A529yyds(email:1041389196@qq.com)
  * create: 20240711
- * FilePath: /zcore/head/CLISingleton.hpp
+ * FilePath: /zcore/head/Zcore.hpp
  * Description: command-line tools developed using CLI11
  */
 
 #include "CLI/CLI.hpp"
-class CLISingleton
+class Zcore
 {
 public:
-    inline static CLISingleton &getInstance()
-    {
-        static CLISingleton instance;
-        return instance;
-    }
+    Zcore();
+    ~Zcore();
     /**
      * @description: set options for CLI::APP and parse
      * @param {int} argc - argc from main
@@ -35,14 +32,6 @@ protected:
      * @param {string} path - installed path
      */
     void pathCallback(std::string path);
-
-private:
-    CLISingleton();
-    ~CLISingleton()
-    {
-    }
-    CLISingleton(const CLISingleton &copy) = delete;
-    CLISingleton &operator=(const CLISingleton &other) = delete;
 
 private:
     CLI::App _app;

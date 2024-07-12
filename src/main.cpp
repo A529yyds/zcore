@@ -1,8 +1,9 @@
-#include "CLISingleton.hpp"
+#include "Zcore.hpp"
 #include <string>
 
 int main(int argc, char **argv)
 {
-    CLISingleton::getInstance().setCmdsParse(argc, argv);
+    Zcore cli;
+    cli.setCmdsParse(argc, argv);
     return 0;
 }

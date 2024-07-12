@@ -170,20 +170,35 @@ void ExecSingleton::installCallback(std::string app)
 
 void ExecSingleton::pathCallback(std::string path)
 {
-    LOG(INFO) << "pathCallback" << std::endl;
     if (path.empty())
     {
         LOG(ERROR) << "install current path" << std::endl;
     }
     else
     {
-        LOG(INFO) << _appName << std::endl;
-        // cmakeOrgCode(JsonSingleton::getInstance().getCodesAddress(_appName));
-        LOG(INFO) << "getCodesAddress end" << std::endl;
         std::string cmd = "mv /root/" + _appName + " " + path;
-        LOG(INFO) << cmd << std::endl;
         execCmd2Host(cmd.c_str());
-        LOG(INFO) << _appName << " finished installation" << std::endl;
+    }
+}
+
+void ExecSingleton::freeSession()
+{
+    // disconnect and release the SSH session
+    if (_sshSession)
+    {
+        try
+        {
+            if (ssh_is_connected(_sshSession))
+            {
+                ssh_disconnect(_sshSession);
+            }
+            ssh_free(_sshSession);
+            _sshSession = nullptr;
+        }
+        catch (const std::exception &e)
+        {
+            LOG(ERROR) << e.what() << '\n';
+        }
     }
 }
 
@@ -214,7 +229,10 @@ int ExecSingleton::connect(nlohmann::json infos)
     rc = -1;
     rc = ssh_connect(_sshSession);
     if (rc != SSH_OK)
+    {
         ssh_free(_sshSession);
+        _sshSession = nullptr;
+    }
     // import private key path
     ssh_key privKey;
     val = infos["path"];
@@ -225,6 +243,7 @@ int ExecSingleton::connect(nlohmann::json infos)
         {
             ssh_disconnect(_sshSession);
             ssh_free(_sshSession);
+            _sshSession = nullptr;
             LOG(ERROR) << "set private key path error, result is " << rc;
             return -1;
         }
@@ -235,6 +254,7 @@ int ExecSingleton::connect(nlohmann::json infos)
             ssh_key_free(privKey);
             ssh_disconnect(_sshSession);
             ssh_free(_sshSession);
+            _sshSession = nullptr;
             return -1;
         }
     }
@@ -245,7 +265,9 @@ int ExecSingleton::connect(nlohmann::json infos)
     {
         ssh_disconnect(_sshSession);
         ssh_free(_sshSession);
+        _sshSession = nullptr;
         LOG(ERROR) << "set user password error, result is " << (rc == SSH_AUTH_SUCCESS ? "success" : "fail");
     }
+    // ssh_disconnect(_sshSession);
     return rc;
 }
