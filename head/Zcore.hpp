@@ -7,7 +7,11 @@
  * Description: command-line tools developed using CLI11
  */
 
+#pragma once
 #include "CLI/CLI.hpp"
+
+class CmdExecution;
+
 class Zcore
 {
 public:
@@ -32,11 +36,38 @@ protected:
      * @param {string} path - installed path
      */
     void pathCallback(std::string path);
+    /**
+     * @description: deploy YugabyteDB master dependence and start server
+     * @param {string} master - master host ip
+     */
+    void yudbMasterDeploy(std::string master);
+    /**
+     * @description: deploy YugabyteDB tserver dependence and start server
+     * @param {string} master - master host ip
+     */
+    void yudbTServerDeploy(std::string master);
+    /**
+     * @description: deploy KeyDB node dependence and start server
+     * @param {string} port - configure port
+     */
+    void keydbDeploy(std::string port);
+    /**
+     * @description:  put the nodes of keydb into a cluster
+     * @param {string} port - insignificance value
+     */
+    void keydbClusterSet(std::string port);
+    /**
+     * @description: connect host ip
+     */
+    void connectHost(CmdExecution &cmdExec);
 
 private:
     CLI::App _app;
-    std::string _hostAddr;
+    std::string _hostIp;
     std::string _hostPwd;
-    std::string _hostUserName;
     std::string _hostKeyPath;
+    std::string _hostUserName;
+    std::vector<std::string> _dbTServers;
+    std::vector<std::string> _keydbClusters;
+    CmdExecution _cmdExecGlobal;
 };

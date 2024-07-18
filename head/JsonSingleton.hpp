@@ -7,6 +7,7 @@
  * Description: a singleton of json file operation
  */
 
+#pragma once
 #include <glog/logging.h>
 #include "nlohmann/json.hpp"
 

@@ -3,23 +3,20 @@
  * @copyright (c) HK ZXOUD LIMITED https://www.zxoud.com
  * Author: A529yyds(email:1041389196@qq.com)
  * create: 20240711
- * FilePath: /zcore/head/ExecSingleton.hpp
+ * FilePath: /zcore/head/CmdExecution.hpp
  * Description: a singleton of sending an execution command to a remote host by Secure Shell
  */
+
+#pragma once
 #include "JsonSingleton.hpp"
 #include <libssh/libssh.h>
 
-class ExecSingleton
+class CmdExecution
 {
 public:
-    /**
-     * @description: a singleton of ExecSingleton
-     * @return {ExecSingleton} a singleton
-     */
-    inline static ExecSingleton &getInstance()
+    CmdExecution();
+    ~CmdExecution()
     {
-        static ExecSingleton instance;
-        return instance;
     }
     /**
      * @description: execute Secure Shell connection
@@ -37,20 +34,51 @@ public:
      * @param {string} path - installed path
      */
     void pathCallback(std::string path);
+    /**
+     * @description: deploy yugabyteDB
+     * @param {string} masterIp - master ip
+     * @param {vector<std::string>} tservers' ip
+     * @return {*}
+     */
+    void setMasterIp(std::string master);
+    /**
+     * @description: deploy YugabyteDB dependence and start YugabyteDB server
+     * @param {string} ip - host ip
+     * @param {bool} bTserver - select whether to deploy tserver node
+     */
+    void yugabyteDeploy(std::string ip, bool bTserver = false);
+    /**
+     * @description: deploy YugabyteDB proxy
+     */
+    void yugabyteProxy();
+    /**
+     * @description: deploy YugabyteDB dependence and start YugabyteDB server in a host
+     * @param {string} masterIp - deploy master ip
+     * @param {vector<std::string>} tserverIps - tservers ip
+     */
+    void yugabyteDeploy(std::string masterIp, std::vector<std::string> tserverIps);
+    /**
+     * @description: deploy KeyDB master node
+     * @param {string} port - deploy port
+     */
+    void keydbDeploy(std::string port);
+    /**
+     * @description: deploy KeyDB cluster node
+     * @param {vector<std::string>} ipPort - configure port
+     */
+    void keydbClusterSet(std::vector<std::string> ipPort);
+    /**
+     * @description: free ssh_session source
+     */
     void freeSession();
 
 private:
     bool _bRemote;
     std::string _appName;
+    std::string _masterYuDB;
     ssh_session _sshSession;
 
 private:
-    ExecSingleton();
-    ~ExecSingleton()
-    {
-    }
-    ExecSingleton(const ExecSingleton &copy) = delete;
-    ExecSingleton &operator=(const ExecSingleton &other) = delete;
     /**
      * @description: execute command to host by Secure Shell
      * @param {char} *cmd - command
@@ -88,4 +116,12 @@ private:
      * @param {string} version - source version
      */
     void cmakeComponent(std::string name, std::string url, std::string version = "");
+    /**
+     * @description: install YugabyteDB dependence libraries in archlinux
+     */
+    void installYudb();
+    /**
+     * @description: install KeyDB dependence libraries  in archlinux
+     */
+    void installKeydb();
 };
