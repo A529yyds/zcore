@@ -1,13 +1,13 @@
-#include "CmdExecution.hpp"
+#include "ExecSingleton.hpp"
 
-CmdExecution::CmdExecution()
+ExecSingleton::ExecSingleton()
 {
     _appName = "";
     _bRemote = false;
     _sshSession = ssh_new();
 }
 
-std::string CmdExecution::execCmd2Host(const char *cmd)
+std::string ExecSingleton::execCmd2Host(const char *cmd)
 {
     std::string result = "";
     ssh_channel sshChannel;
@@ -50,7 +50,7 @@ std::string CmdExecution::execCmd2Host(const char *cmd)
     return result;
 }
 
-std::string CmdExecution::execCmd2Local(const char *cmd, bool bInPath)
+std::string ExecSingleton::execCmd2Local(const char *cmd, bool bInPath)
 {
     std::array<char, 256> buffer;
     std::string result;
@@ -76,7 +76,7 @@ std::string CmdExecution::execCmd2Local(const char *cmd, bool bInPath)
     return result;
 }
 
-bool CmdExecution::isLibExist(std::string lib)
+bool ExecSingleton::isLibExist(std::string lib)
 {
     bool bExist = false;
     if (lib.empty())
@@ -91,7 +91,7 @@ bool CmdExecution::isLibExist(std::string lib)
     return bExist;
 }
 
-void CmdExecution::cmakeOrgCode(std::string url, std::string version)
+void ExecSingleton::cmakeOrgCode(std::string url, std::string version)
 {
     std::string cmd;
     cmd = "cd;";
@@ -112,7 +112,7 @@ void CmdExecution::cmakeOrgCode(std::string url, std::string version)
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::installComponent(std::string cpn)
+void ExecSingleton::installComponent(std::string cpn)
 {
     if (isLibExist(cpn))
     {
@@ -128,7 +128,7 @@ void CmdExecution::installComponent(std::string cpn)
     }
 }
 
-void CmdExecution::cmakeComponent(std::string name, std::string url, std::string version)
+void ExecSingleton::cmakeComponent(std::string name, std::string url, std::string version)
 {
     std::string cmd = "find / -name " + name + ".pc";
     if (!execCmd2Host(cmd.c_str()).empty())
@@ -144,7 +144,7 @@ void CmdExecution::cmakeComponent(std::string name, std::string url, std::string
     }
 }
 
-void CmdExecution::installYudb()
+void ExecSingleton::installYudb()
 {
     execCmd2Host("pacman -Syu --noconfirm");
     execCmd2Host("pacman -Sy");
@@ -169,7 +169,7 @@ void CmdExecution::installYudb()
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::installKeydb()
+void ExecSingleton::installKeydb()
 {
     execCmd2Host("pacman -Syu --noconfirm");
     execCmd2Host("pacman -Sy");
@@ -183,14 +183,14 @@ void CmdExecution::installKeydb()
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::setMasterIp(std::string master)
+void ExecSingleton::setMasterIp(std::string master)
 {
     _masterYuDB = master;
 }
 
-void CmdExecution::yugabyteDeploy(std::string ip, bool bTserver)
+void ExecSingleton::yugabyteDeploy(std::string ip, bool bTserver)
 {
-    LOG(INFO) << "ip is " << ip << " bTserver is " << bTserver;
+    LOG(INFO) << (bTserver ? "tserver" : "master") << " ip is " << ip;
     // installYudb();
     std::string cmd;
     if (!bTserver)
@@ -198,7 +198,8 @@ void CmdExecution::yugabyteDeploy(std::string ip, bool bTserver)
         // create and start master node
         cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-master --master_addresses {}:7100 --rpc_bind_addresses {}  --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\" --placement_cloud aws --placement_region us-west --placement_zone us-west-2a --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-master.out &",
                           ip, ip);
-        LOG(INFO) << cmd;
+        _masterYuDB = ip;
+        yugabyteReplica();
     }
     else
     {
@@ -214,12 +215,12 @@ void CmdExecution::yugabyteDeploy(std::string ip, bool bTserver)
          --placement_zone us-west-2a\
          --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-tserver.out &",
                           _masterYuDB, ip, ip, ip);
-        LOG(INFO) << cmd;
     }
+    LOG(INFO) << cmd;
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::yugabyteProxy()
+void ExecSingleton::yugabyteReplica()
 {
     /*
      * set master stategy:
@@ -238,7 +239,7 @@ void CmdExecution::yugabyteProxy()
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::yugabyteDeploy(std::string masterIp, std::vector<std::string> tserverIps)
+void ExecSingleton::yugabyteDeploy(std::string masterIp, std::vector<std::string> tserverIps)
 {
     LOG(INFO) << masterIp << " yugabyteDeploy start deploy";
     execCmd2Host("pacman -Syu --noconfirm");
@@ -257,7 +258,7 @@ void CmdExecution::yugabyteDeploy(std::string masterIp, std::vector<std::string>
         tarCmd = "tar xvfz yugabyte-2.21.1.0-b271-linux-x86_64.tar.gz;";
     }
     cmd += tarCmd;
-    // execCmd2Host(cmd.c_str());
+    execCmd2Host(cmd.c_str());
     cmd = "cd /root/yugabyte-2.21.1.0/ && ./bin/post_install.sh;";
     execCmd2Host(cmd.c_str());
     cmd = "mkdir /home/centos && mkdir /home/centos/disk1;";
@@ -305,7 +306,7 @@ void CmdExecution::yugabyteDeploy(std::string masterIp, std::vector<std::string>
     LOG(INFO) << "yugabyteDB deploy finished";
 }
 
-void CmdExecution::keydbDeploy(std::string port)
+void ExecSingleton::keydbDeploy(std::string port)
 {
     installKeydb();
     // open nodes
@@ -321,7 +322,7 @@ void CmdExecution::keydbDeploy(std::string port)
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::keydbClusterSet(std::vector<std::string> ipPorts)
+void ExecSingleton::keydbClusterSet(std::vector<std::string> ipPorts)
 {
     std::string cmd = "keydb-cli --cluster create --cluster-yes";
     for (auto ipPort : ipPorts)
@@ -331,7 +332,7 @@ void CmdExecution::keydbClusterSet(std::vector<std::string> ipPorts)
     execCmd2Host(cmd.c_str());
 }
 
-void CmdExecution::installCallback(std::string app)
+void ExecSingleton::installCallback(std::string app)
 {
     LOG(INFO) << app << " installCallback, update system..." << std::endl;
     if (app.empty())
@@ -358,7 +359,7 @@ void CmdExecution::installCallback(std::string app)
     LOG(INFO) << app << " finished installation" << std::endl;
 }
 
-void CmdExecution::pathCallback(std::string path)
+void ExecSingleton::pathCallback(std::string path)
 {
     if (path.empty())
     {
@@ -371,7 +372,7 @@ void CmdExecution::pathCallback(std::string path)
     }
 }
 
-void CmdExecution::freeSession()
+void ExecSingleton::freeSession()
 {
     // disconnect and release the SSH session
     if (_sshSession)
@@ -392,7 +393,7 @@ void CmdExecution::freeSession()
     }
 }
 
-int CmdExecution::connect(nlohmann::json infos)
+int ExecSingleton::connect(nlohmann::json infos)
 {
     int rc = -1;
     if (!_sshSession)
@@ -426,8 +427,7 @@ int CmdExecution::connect(nlohmann::json infos)
     rc = ssh_connect(_sshSession);
     if (rc != SSH_OK)
     {
-        ssh_free(_sshSession);
-        _sshSession = nullptr;
+        freeSession();
     }
     // import private key path
     ssh_key privKey;
@@ -438,9 +438,7 @@ int CmdExecution::connect(nlohmann::json infos)
         rc = ssh_pki_import_privkey_file(val.c_str(), NULL, NULL, NULL, &privKey);
         if (rc != SSH_OK)
         {
-            ssh_disconnect(_sshSession);
-            ssh_free(_sshSession);
-            _sshSession = nullptr;
+            freeSession();
             LOG(ERROR) << "set private key path error, result is " << rc;
             return -1;
         }
@@ -449,9 +447,7 @@ int CmdExecution::connect(nlohmann::json infos)
         if (rc != SSH_AUTH_SUCCESS)
         {
             ssh_key_free(privKey);
-            ssh_disconnect(_sshSession);
-            ssh_free(_sshSession);
-            _sshSession = nullptr;
+            freeSession();
             LOG(ERROR) << "ssh_userauth_publickey error, result is " << rc;
             return -1;
         }
@@ -461,11 +457,8 @@ int CmdExecution::connect(nlohmann::json infos)
         rc = ssh_userauth_password(_sshSession, NULL, val.c_str());
     if (rc != SSH_AUTH_SUCCESS)
     {
-        ssh_disconnect(_sshSession);
-        ssh_free(_sshSession);
-        _sshSession = nullptr;
+        freeSession();
         LOG(ERROR) << "set user password error, result is " << (rc == SSH_AUTH_SUCCESS ? "success" : "fail");
     }
-    // ssh_disconnect(_sshSession);
     return rc;
 }

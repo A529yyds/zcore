@@ -3,7 +3,7 @@
  * @copyright (c) HK ZXOUD LIMITED https://www.zxoud.com
  * Author: A529yyds(email:1041389196@qq.com)
  * create: 20240711
- * FilePath: /zcore/head/CmdExecution.hpp
+ * FilePath: /zcore/head/ExecSingleton.hpp
  * Description: a singleton of sending an execution command to a remote host by Secure Shell
  */
 
@@ -11,12 +11,17 @@
 #include "JsonSingleton.hpp"
 #include <libssh/libssh.h>
 
-class CmdExecution
+class ExecSingleton
 {
 public:
-    CmdExecution();
-    ~CmdExecution()
+    /**
+     * @description: get a ExecSingleton instance
+     * @return {ExecSingleton} instance
+     */
+    inline static ExecSingleton &getInstance()
     {
+        static ExecSingleton instance;
+        return instance;
     }
     /**
      * @description: execute Secure Shell connection
@@ -48,10 +53,6 @@ public:
      */
     void yugabyteDeploy(std::string ip, bool bTserver = false);
     /**
-     * @description: deploy YugabyteDB proxy
-     */
-    void yugabyteProxy();
-    /**
      * @description: deploy YugabyteDB dependence and start YugabyteDB server in a host
      * @param {string} masterIp - deploy master ip
      * @param {vector<std::string>} tserverIps - tservers ip
@@ -79,6 +80,10 @@ private:
     ssh_session _sshSession;
 
 private:
+    ExecSingleton();
+    ~ExecSingleton()
+    {
+    }
     /**
      * @description: execute command to host by Secure Shell
      * @param {char} *cmd - command
@@ -120,6 +125,10 @@ private:
      * @description: install YugabyteDB dependence libraries in archlinux
      */
     void installYudb();
+    /**
+     * @description: deploy YugabyteDB replica placement policy
+     */
+    void yugabyteReplica();
     /**
      * @description: install KeyDB dependence libraries  in archlinux
      */

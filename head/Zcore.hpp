@@ -59,7 +59,7 @@ protected:
     /**
      * @description: connect host ip
      */
-    void connectHost(CmdExecution &cmdExec);
+    void connectHost();
 
 private:
     CLI::App _app;
@@ -69,5 +69,4 @@ private:
     std::string _hostUserName;
     std::vector<std::string> _dbTServers;
     std::vector<std::string> _keydbClusters;
-    CmdExecution _cmdExecGlobal;
 };

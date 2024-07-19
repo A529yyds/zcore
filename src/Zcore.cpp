@@ -1,5 +1,5 @@
 #include "Zcore.hpp"
-#include "CmdExecution.hpp"
+#include "ExecSingleton.hpp"
 
 Zcore::Zcore()
 {
@@ -10,7 +10,7 @@ Zcore::Zcore()
 
 Zcore::~Zcore()
 {
-    _cmdExecGlobal.freeSession();
+    ExecSingleton::getInstance().freeSession();
 }
 
 int Zcore::setCmdsParse(int argc, char **argv)
@@ -44,52 +44,47 @@ int Zcore::setCmdsParse(int argc, char **argv)
 
 void Zcore::installCallback(std::string app)
 {
-    connectHost(_cmdExecGlobal);
-    _cmdExecGlobal.installCallback(app);
+    connectHost();
+    ExecSingleton::getInstance().installCallback(app);
 }
 
 void Zcore::pathCallback(std::string path)
 {
-    connectHost(_cmdExecGlobal);
-    _cmdExecGlobal.pathCallback(path);
+    ExecSingleton::getInstance().pathCallback(path);
     // the session needs to be released because of pathCallback execution after install
 }
 
 void Zcore::yudbMasterDeploy(std::string master)
 {
-    CmdExecution cmdExec;
-    connectHost(cmdExec);
-    cmdExec.yugabyteDeploy(master);
-    cmdExec.freeSession();
+    connectHost();
+    ExecSingleton::getInstance().yugabyteDeploy(master);
+    ExecSingleton::getInstance().freeSession();
 }
 
 void Zcore::yudbTServerDeploy(std::string master)
 {
     LOG(INFO) << "yudb TServer Deploy";
-    CmdExecution cmdExec;
-    connectHost(cmdExec);
-    cmdExec.setMasterIp(master);
-    cmdExec.yugabyteDeploy(_hostIp, true);
-    cmdExec.freeSession();
+    connectHost();
+    ExecSingleton::getInstance().setMasterIp(master);
+    ExecSingleton::getInstance().yugabyteDeploy(_hostIp, true);
+    ExecSingleton::getInstance().freeSession();
 }
 
 void Zcore::keydbDeploy(std::string port)
 {
-    CmdExecution cmdExec;
-    connectHost(cmdExec);
-    cmdExec.keydbDeploy(port);
-    cmdExec.freeSession();
+    connectHost();
+    ExecSingleton::getInstance().keydbDeploy(port);
+    ExecSingleton::getInstance().freeSession();
 }
 
 void Zcore::keydbClusterSet(std::string port)
 {
-    CmdExecution cmdExec;
-    connectHost(cmdExec);
-    cmdExec.keydbClusterSet(_keydbClusters);
-    cmdExec.freeSession();
+    connectHost();
+    ExecSingleton::getInstance().keydbClusterSet(_keydbClusters);
+    ExecSingleton::getInstance().freeSession();
 }
 
-void Zcore::connectHost(CmdExecution &cmdExec)
+void Zcore::connectHost()
 {
     nlohmann::json hostInfo;
     hostInfo["ip"] = _hostIp;
@@ -98,6 +93,6 @@ void Zcore::connectHost(CmdExecution &cmdExec)
     hostInfo["userName"] = _hostUserName;
     LOG(ERROR) << hostInfo;
 
-    int ret = cmdExec.connect(hostInfo);
+    int ret = ExecSingleton::getInstance().connect(hostInfo);
     LOG(INFO) << "connect status " << ret;
 }
