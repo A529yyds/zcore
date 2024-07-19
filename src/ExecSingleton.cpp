@@ -153,12 +153,14 @@ void ExecSingleton::installYudb()
     installComponent("curl");
     std::string cmd = "wget https://downloads.yugabyte.com/releases/2.21.1.0/yugabyte-2.21.1.0-b271-el8-aarch64.tar.gz;";
     std::string tarCmd = "tar xvfz yugabyte-2.21.1.0-b271-el8-aarch64.tar.gz;";
+    tarCmd += "rm -rf yugabyte-2.21.1.0-b271-el8-aarch64.tar.gz;";
     std::string system = execCmd2Host("uname -m");
     if (system.find("x86") == 0)
     {
         LOG(INFO) << system;
         cmd = "wget https://downloads.yugabyte.com/releases/2.21.1.0/yugabyte-2.21.1.0-b271-linux-x86_64.tar.gz;";
         tarCmd = "tar xvfz yugabyte-2.21.1.0-b271-linux-x86_64.tar.gz;";
+        tarCmd += "rm -rf yugabyte-2.21.1.0-b271-linux-x86_64.tar.gz;";
     }
     cmd += tarCmd;
     execCmd2Host(cmd.c_str());
@@ -191,7 +193,8 @@ void ExecSingleton::setMasterIp(std::string master)
 void ExecSingleton::yugabyteDeploy(std::string ip, bool bTserver)
 {
     LOG(INFO) << (bTserver ? "tserver" : "master") << " ip is " << ip;
-    // installYudb();
+    if (_masterYuDB != ip)
+        installYudb();
     std::string cmd;
     if (!bTserver)
     {
@@ -199,7 +202,6 @@ void ExecSingleton::yugabyteDeploy(std::string ip, bool bTserver)
         cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-master --master_addresses {}:7100 --rpc_bind_addresses {}  --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\" --placement_cloud aws --placement_region us-west --placement_zone us-west-2a --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-master.out &",
                           ip, ip);
         _masterYuDB = ip;
-        yugabyteReplica();
     }
     else
     {
@@ -218,6 +220,8 @@ void ExecSingleton::yugabyteDeploy(std::string ip, bool bTserver)
     }
     LOG(INFO) << cmd;
     execCmd2Host(cmd.c_str());
+    if (!bTserver)
+        yugabyteReplica();
 }
 
 void ExecSingleton::yugabyteReplica()
