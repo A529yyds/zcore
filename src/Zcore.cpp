@@ -25,6 +25,10 @@ int Zcore::setCmdsParse(int argc, char **argv)
     _app.add_option("-i,--installapp", appName, "install application")->each(funcApp);
     std::function<void(std::string)> funcPath = std::bind(&Zcore::pathCallback, this, std::placeholders::_1);
     _app.add_option("-p,--path", path, "select application install path")->each(funcPath);
+    std::function<void(std::string)> funcUninstall = std::bind(&Zcore::uninstallCallback, this, std::placeholders::_1);
+    _app.add_option("--uninstall", appName, "uninstall application or library")->each(funcUninstall);
+    std::function<void(std::string)> funcRemove = std::bind(&Zcore::removeCallback, this, std::placeholders::_1);
+    _app.add_option("--remove", appName, "uninstall application or library from compiled by original code")->each(funcRemove);
 
     bool flag = false;
     std::string master = "";
@@ -50,6 +54,18 @@ void Zcore::installCallback(std::string app)
 {
     connectHost();
     ExecSingleton::getInstance().installCallback(app);
+}
+
+void Zcore::uninstallCallback(std::string name)
+{
+    connectHost();
+    ExecSingleton::getInstance().uninstall(name);
+}
+
+void Zcore::removeCallback(std::string name)
+{
+    connectHost();
+    ExecSingleton::getInstance().uninstall(name, true);
 }
 
 void Zcore::pathCallback(std::string path)

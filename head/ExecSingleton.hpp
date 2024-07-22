@@ -69,6 +69,12 @@ public:
      */
     void keydbClusterSet(std::vector<std::string> ipPort);
     /**
+     * @description: uninstall library or application which called name
+     * @param {string} name - uninstall application name
+     * @param {bool} bSCodes - a flag of uninstall original codes
+     */
+    void uninstall(std::string name, bool bSCodes = false);
+    /**
      * @description: free ssh_session source
      */
     void freeSession();
@@ -104,12 +110,6 @@ private:
      */
     bool isLibExist(std::string lib);
     /**
-     * @description: compile the source code with cmake
-     * @param {string} url - source URL
-     * @param {string} version - source version
-     */
-    void cmakeOrgCode(std::string url, std::string version = "");
-    /**
      * @description: install a component named cpn
      * @param {string} cpn - component name
      */
@@ -121,6 +121,12 @@ private:
      * @param {string} version - source version
      */
     void cmakeComponent(std::string name, std::string url, std::string version = "");
+    /**
+     * @description: compile the source code with cmake
+     * @param {string} url - source URL
+     * @param {string} version - source version
+     */
+    void cmakeOrgCode(std::string url, std::string version = "");
     /**
      * @description: install YugabyteDB dependence libraries in archlinux
      */

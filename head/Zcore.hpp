@@ -32,6 +32,16 @@ protected:
      */
     void installCallback(std::string app);
     /**
+     * @description: uninstall application named 'name'
+     * @param {string} name - applicaion name
+     */
+    void uninstallCallback(std::string name);
+    /**
+     * @description: remove files of original codes
+     * @param {string} name - original codes
+     */
+    void removeCallback(std::string name);
+    /**
      * @description: callback function for option -p
      * @param {string} path - installed path
      */

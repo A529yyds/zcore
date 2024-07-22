@@ -1,3 +1,4 @@
+#include <sstream>
 #include "ExecSingleton.hpp"
 
 ExecSingleton::ExecSingleton()
@@ -109,6 +110,7 @@ void ExecSingleton::cmakeOrgCode(std::string url, std::string version)
     cmd += "cmake ..;";
     cmd += "make -j8;";
     cmd += "make install;";
+    LOG(ERROR) << cmd;
     execCmd2Host(cmd.c_str());
 }
 
@@ -367,11 +369,46 @@ void ExecSingleton::pathCallback(std::string path)
 {
     if (path.empty())
     {
-        LOG(ERROR) << "install current path" << std::endl;
+        LOG(INFO) << "install current path" << std::endl;
     }
     else
     {
         std::string cmd = "mv /root/" + _appName + " " + path;
+        execCmd2Host(cmd.c_str());
+    }
+}
+
+void ExecSingleton::uninstall(std::string name, bool bSCodes)
+{
+    std::string cmd;
+    if (!execCmd2Host("find / -wholename \"/var/lib/pacman/db.lck\"").empty())
+    {
+        cmd = "sudo rm /var/lib/pacman/db.lck";
+    }
+    cmd = "sudo pacman -Syu --noconfirm && pacman -Rs " + name + " --noconfirm";
+
+    if (bSCodes)
+    {
+        cmd = std::format("find / -name \"{}\"", name);
+        std::string reply = execCmd2Host(cmd.c_str());
+        std::istringstream iss(reply);
+        std::vector<std::string> paths;
+        std::string line;
+        while (std::getline(iss, line))
+        {
+            paths.push_back(line);
+            LOG(INFO) << cmd;
+        }
+        for (const auto &path : paths)
+        {
+            cmd = "rm -rf " + path + ";";
+            LOG(INFO) << cmd;
+            execCmd2Host(cmd.c_str());
+        }
+    }
+    else
+    {
+        LOG(INFO) << cmd;
         execCmd2Host(cmd.c_str());
     }
 }
