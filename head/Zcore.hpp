@@ -57,6 +57,21 @@ protected:
      */
     void yudbTServerDeploy(std::string master);
     /**
+     * @description: add master node to cluster
+     * @param {string} master - master IP
+     */
+    void addMaster2Cluster(std::string master);
+    /**
+     * @description: remove master node to cluster
+     * @param {string} master - master IP
+     */
+    void removeMasterFromCluster(std::string master);
+    /**
+     * @description: deploy over one master node in same cluster directly
+     * @param {string} masterIp - master IP
+     */
+    void yudbDirectDeploy(std::string master);
+    /**
      * @description: deploy KeyDB node dependence and start server
      * @param {string} port - configure port
      */
@@ -73,10 +88,10 @@ protected:
 
 private:
     CLI::App _app;
-    std::string _hostIp;
-    std::string _hostPwd;
-    std::string _hostKeyPath;
-    std::string _hostUserName;
+    std::vector<std::string> _hostIps;
+    std::vector<std::string> _hostPwds;
+    std::vector<std::string> _hostKeyPaths;
+    std::vector<std::string> _hostUserNames;
     std::vector<std::string> _dbTServers;
     std::vector<std::string> _keydbClusters;
 };

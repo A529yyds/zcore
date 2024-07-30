@@ -4,7 +4,7 @@
 
 JsonSingleton::JsonSingleton()
 {
-    _path = "./config.json";
+    _path = "../config.json";
     readData();
     // initDefaultConfig();
 }
@@ -26,6 +26,7 @@ nlohmann::json JsonSingleton::readData()
     {
         LOG(INFO) << "JSON parse error: " << e.what() << std::endl;
     }
+    LOG(INFO) << _readData;
     return _readData;
 }
 
@@ -50,6 +51,38 @@ std::string JsonSingleton::getCodesAddress(std::string appName)
     LOG(INFO) << "getCodesAddress " << appName << std::endl;
     nlohmann::json json = _readData;
     return json[appName]["address"];
+}
+
+std::vector<std::string> JsonSingleton::getYudbMasters()
+{
+    return _readData["yudbMasters"];
+}
+
+void JsonSingleton::addYudbMaster(std::string newMaster)
+{
+    _readData["yudbMasters"].push_back(newMaster);
+    writeData(_readData);
+}
+
+void JsonSingleton::addYudbMasters(std::vector<nlohmann::json> masters)
+{
+    std::vector<std::string> mVec;
+    for (auto val : masters)
+    {
+        mVec.push_back(val["ip"]);
+    }
+    _readData["yudbMasters"] = mVec;
+    writeData(_readData);
+}
+
+void JsonSingleton::removeYudbMaster(std::string master)
+{
+    auto iter = std::find(_readData["yudbMasters"].begin(), _readData["yudbMasters"].end(), master);
+    if (iter != _readData["yudbMasters"].end())
+    {
+        _readData["yudbMasters"].erase(iter);
+    }
+    writeData(_readData);
 }
 
 nlohmann::json JsonSingleton::getCodeItem(std::string url, std::string version)

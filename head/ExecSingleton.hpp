@@ -11,6 +11,12 @@
 #include "JsonSingleton.hpp"
 #include <libssh/libssh.h>
 
+struct YudbDeployCmd
+{
+    std::string master;
+    std::string tserver;
+};
+
 class ExecSingleton
 {
 public:
@@ -29,6 +35,11 @@ public:
      * @return {int} connect result 0: success, -1: fail
      */
     int connect(nlohmann::json infos);
+    /**
+     * @description: set host informations
+     * @param {vector<nlohmann::json>} hostInfos - input host informations
+     */
+    void setHostInfos(std::vector<nlohmann::json> hostInfos);
     /**
      * @description: callback function for option -i
      * @param {string} app - application name
@@ -53,11 +64,24 @@ public:
      */
     void yugabyteDeploy(std::string ip, bool bTserver = false);
     /**
-     * @description: deploy YugabyteDB dependence and start YugabyteDB server in a host
-     * @param {string} masterIp - deploy master ip
-     * @param {vector<std::string>} tserverIps - tservers ip
+     * @description: get YugabyteDB deploys nodes command in the same cluster
      */
-    void yugabyteDeploy(std::string masterIp, std::vector<std::string> tserverIps);
+    std::vector<YudbDeployCmd> getYudbClusterDeployCmds();
+    /**
+     * @description: deploy over one master node in same cluster directly
+     * @param {string} masterIp - master IP
+     */
+    void yudbDirectDeploy(std::string masterIp);
+    /**
+     * @description: add master node to cluster
+     * @param {string} master - master IP
+     */
+    void addMaster2Cluster(std::string master);
+    /**
+     * @description: remove master node to cluster
+     * @param {string} master - master IP
+     */
+    void removeMasterFromCluster(std::string master);
     /**
      * @description: deploy KeyDB master node
      * @param {string} port - deploy port
@@ -84,6 +108,8 @@ private:
     std::string _appName;
     std::string _masterYuDB;
     ssh_session _sshSession;
+    // std::vector<std::string> _yudbNodes;
+    std::vector<nlohmann::json> _hostInfos;
 
 private:
     ExecSingleton();
@@ -93,9 +119,10 @@ private:
     /**
      * @description: execute command to host by Secure Shell
      * @param {char} *cmd - command
+     * @param {bool} bRead - determined read reply
      * @return {string} execution result
      */
-    std::string execCmd2Host(const char *cmd);
+    std::string execCmd2Host(const char *cmd, bool bRead = true);
     /**
      * @description: execute command to local
      * @param {char} *cmd - command
@@ -135,6 +162,11 @@ private:
      * @description: deploy YugabyteDB replica placement policy
      */
     void yugabyteReplica();
+    /**
+     * @description: get all of the YugabyteDB masters IP and port
+     * @return {*}
+     */
+    std::string getYudbMastersStr();
     /**
      * @description: install KeyDB dependence libraries  in archlinux
      */

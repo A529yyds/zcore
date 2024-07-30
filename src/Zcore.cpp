@@ -16,10 +16,10 @@ Zcore::~Zcore()
 int Zcore::setCmdsParse(int argc, char **argv)
 {
     std::string path, appName, keydbIpPort = "";
-    _app.add_option("-a,--address", _hostIp, "connect host address for installation")->required();
-    _app.add_option("-w,--password", _hostPwd, "connect host password for installation");
-    _app.add_option("-k,--keypath", _hostKeyPath, "connect host API key path for installation");
-    _app.add_option("-u,--username", _hostUserName, "connect host user name for installation")->required();
+    _app.add_option("-a,--address", _hostIps, "connect host address for installation")->required();
+    _app.add_option("-w,--password", _hostPwds, "connect host password for installation");
+    _app.add_option("-k,--keypath", _hostKeyPaths, "connect host API key path for installation");
+    _app.add_option("-u,--username", _hostUserNames, "connect host user name for installation")->required();
 
     std::function<void(std::string)> funcApp = std::bind(&Zcore::installCallback, this, std::placeholders::_1);
     _app.add_option("-i,--installapp", appName, "install application")->each(funcApp);
@@ -36,16 +36,21 @@ int Zcore::setCmdsParse(int argc, char **argv)
     _app.add_flag("--ymaster", flag, "deploy YugabyteDB and create in master node")->each(funcYudb);
     funcYudb = std::bind(&Zcore::yudbTServerDeploy, this, std::placeholders::_1);
     _app.add_option("--tserver", master, "deploy YugabyteDB and create in tserver node, and must need to input master IP")->each(funcYudb);
+    funcYudb = std::bind(&Zcore::addMaster2Cluster, this, std::placeholders::_1);
+    _app.add_flag("--addmaster", master, "add master to cluster")->each(funcYudb);
+    funcYudb = std::bind(&Zcore::removeMasterFromCluster, this, std::placeholders::_1);
+    _app.add_flag("--rmvmaster", master, "remove master to cluster")->each(funcYudb);
+    funcYudb = std::bind(&Zcore::yudbDirectDeploy, this, std::placeholders::_1);
+    _app.add_option("--ybdeploy", master, "remove master to cluster")->each(funcYudb);
 
     flag = false;
     std::function<void(std::string)> funcKeydb = std::bind(&Zcore::keydbDeploy, this, std::placeholders::_1);
     _app.add_option("--keydb", keydbIpPort, "deploy KeyDB and start node one by one")->each(funcKeydb);
     _app.add_option("--keydbclusters", _keydbClusters, "run on a host that has KeyDB nodes enabled, \
     place all KeyDB nodes in the same cluster, \
-    and enter all the IP addresses that enable the cluster");
+    and enter all the IP:port that enable the cluster");
     std::function<void(std::string)> funcKeydbCluster = std::bind(&Zcore::keydbClusterSet, this, std::placeholders::_1);
     _app.add_flag("-d", flag, "the command deployed in the same cluster starts")->each(funcKeydbCluster);
-
     CLI11_PARSE(_app, argc, argv);
     return 0;
 }
@@ -77,7 +82,7 @@ void Zcore::pathCallback(std::string path)
 void Zcore::yudbMasterDeploy(std::string master)
 {
     connectHost();
-    ExecSingleton::getInstance().yugabyteDeploy(_hostIp);
+    ExecSingleton::getInstance().yugabyteDeploy(_hostIps[0]);
     ExecSingleton::getInstance().freeSession();
 }
 
@@ -86,8 +91,28 @@ void Zcore::yudbTServerDeploy(std::string master)
     LOG(INFO) << "yudb TServer Deploy";
     connectHost();
     ExecSingleton::getInstance().setMasterIp(master);
-    ExecSingleton::getInstance().yugabyteDeploy(_hostIp, true);
+    ExecSingleton::getInstance().yugabyteDeploy(_hostIps[0], true);
     ExecSingleton::getInstance().freeSession();
+}
+
+void Zcore::addMaster2Cluster(std::string master)
+{
+    connectHost();
+    ExecSingleton::getInstance().addMaster2Cluster(_hostIps[0]);
+    ExecSingleton::getInstance().freeSession();
+}
+
+void Zcore::removeMasterFromCluster(std::string master)
+{
+    connectHost();
+    ExecSingleton::getInstance().removeMasterFromCluster(_hostIps[0]);
+    ExecSingleton::getInstance().freeSession();
+}
+
+void Zcore::yudbDirectDeploy(std::string master)
+{
+    connectHost();
+    ExecSingleton::getInstance().yudbDirectDeploy(master);
 }
 
 void Zcore::keydbDeploy(std::string port)
@@ -106,13 +131,21 @@ void Zcore::keydbClusterSet(std::string port)
 
 void Zcore::connectHost()
 {
+    std::vector<nlohmann::json> hostInfos;
     nlohmann::json hostInfo;
-    hostInfo["ip"] = _hostIp;
-    hostInfo["password"] = _hostPwd;
-    hostInfo["path"] = _hostKeyPath;
-    hostInfo["userName"] = _hostUserName;
-    LOG(ERROR) << hostInfo;
-
-    int ret = ExecSingleton::getInstance().connect(hostInfo);
-    LOG(INFO) << "connect status " << ret;
+    for (int i = 0; i < _hostIps.size(); i++)
+    {
+        hostInfo["ip"] = _hostIps[i];
+        hostInfo["password"] = i < _hostPwds.size() ? _hostPwds[i] : "";
+        hostInfo["path"] = i < _hostKeyPaths.size() ? _hostKeyPaths[i] : "";
+        hostInfo["userName"] = i < _hostUserNames.size() ? _hostUserNames[i] : "";
+        LOG(ERROR) << hostInfo;
+        hostInfos.push_back(hostInfo);
+    }
+    ExecSingleton::getInstance().setHostInfos(hostInfos);
+    if (hostInfos.size() <= 1)
+    {
+        int ret = ExecSingleton::getInstance().connect(hostInfos.size() < 1 ? "" : hostInfos[0]);
+        LOG(INFO) << "connect status " << ret;
+    }
 }

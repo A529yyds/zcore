@@ -1,15 +1,39 @@
 #include <sstream>
 #include "ExecSingleton.hpp"
 
+// explain: all of YugabyteDB nodes uses defalt port 7100 to deploy
+#define YB_MASTER_CMD "cd /root/yugabyte-2.21.1.0/ && ./bin/yb-master\
+ --master_addresses {}\
+ --rpc_bind_addresses {}\
+ --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\"\
+ --placement_cloud aws\
+ --placement_region us-west\
+ --placement_zone us-west-2a\
+ --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-master.out &"
+
+#define YB_TSERVER_CMD "cd /root/yugabyte-2.21.1.0/ && ./bin/yb-tserver\
+ --tserver_master_addrs {}\
+ --rpc_bind_addresses {}\
+ --enable_ysql\
+ --pgsql_proxy_bind_address {}:5433\
+ --cql_proxy_bind_address {}:9042\
+ --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\"\
+ --placement_cloud aws\
+ --placement_region us-west\
+ --placement_zone us-west-2a\
+ --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-tserver.out &"
+
 ExecSingleton::ExecSingleton()
 {
     _appName = "";
     _bRemote = false;
     _sshSession = ssh_new();
+    _hostInfos.clear();
 }
 
-std::string ExecSingleton::execCmd2Host(const char *cmd)
+std::string ExecSingleton::execCmd2Host(const char *cmd, bool bRead)
 {
+    LOG(ERROR) << cmd;
     std::string result = "";
     ssh_channel sshChannel;
     sshChannel = ssh_channel_new(_sshSession);
@@ -34,16 +58,21 @@ std::string ExecSingleton::execCmd2Host(const char *cmd)
         ssh_channel_free(sshChannel);
         return result;
     }
-    char buf[256];
-    unsigned int iBytes;
-    iBytes = ssh_channel_read(sshChannel, buf, sizeof(buf), 0);
-    while (iBytes > 0)
+    if (bRead)
     {
-        fwrite(buf, 1, iBytes, stdout);
-        LOG(INFO) << "ssh read info " << buf;
-        std::string str(buf);
-        result += buf;
+        char buf[256];
+        unsigned int iBytes;
+        // ssh_channel_set_blocking(sshChannel, 0);
         iBytes = ssh_channel_read(sshChannel, buf, sizeof(buf), 0);
+        while (iBytes > 0)
+        {
+            fwrite(buf, 1, iBytes, stdout);
+            LOG(INFO) << "ssh read info " << buf;
+            std::string str(buf);
+            result += buf;
+            iBytes = ssh_channel_read(sshChannel, buf, sizeof(buf), 0);
+        }
+        LOG(INFO) << "ssh read info null";
     }
     ssh_channel_send_eof(sshChannel);
     ssh_channel_close(sshChannel);
@@ -180,10 +209,11 @@ void ExecSingleton::installKeydb()
     // compile original code
     installComponent("base-devel");
     installComponent("git");
-    std::string cmd = "git config --global http.version HTTP/1.1 && ";
-    cmd += "git config --global http.postBuffer 524288000 && ";
+    std::string cmd = "cd && git config --global http.version HTTP/1.1 && ";
+    cmd += "git config --global http.postBuffer 2097152000 && ";
     cmd += "git clone  https://github.com/EQ-Alpha/KeyDB.git && ";
     cmd += "cd KeyDB && make && make install";
+    LOG(INFO) << "installKeydb: " << cmd;
     execCmd2Host(cmd.c_str());
 }
 
@@ -201,24 +231,12 @@ void ExecSingleton::yugabyteDeploy(std::string ip, bool bTserver)
     if (!bTserver)
     {
         // create and start master node
-        cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-master --master_addresses {}:7100 --rpc_bind_addresses {}  --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\" --placement_cloud aws --placement_region us-west --placement_zone us-west-2a --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-master.out &",
-                          ip, ip);
+        cmd = std::format(YB_MASTER_CMD, ip, ip);
         _masterYuDB = ip;
     }
     else
     {
-        cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-tserver\
-         --tserver_master_addrs {}:7100\
-         --rpc_bind_addresses {}\
-         --enable_ysql\
-         --pgsql_proxy_bind_address {}:5433\
-         --cql_proxy_bind_address {}:9042\
-         --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\"\
-         --placement_cloud aws\
-         --placement_region us-west\
-         --placement_zone us-west-2a\
-         --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-tserver.out &",
-                          _masterYuDB, ip, ip, ip);
+        cmd = std::format(YB_TSERVER_CMD, _masterYuDB, ip, ip, ip);
     }
     LOG(INFO) << cmd;
     execCmd2Host(cmd.c_str());
@@ -245,71 +263,76 @@ void ExecSingleton::yugabyteReplica()
     execCmd2Host(cmd.c_str());
 }
 
-void ExecSingleton::yugabyteDeploy(std::string masterIp, std::vector<std::string> tserverIps)
+std::string ExecSingleton::getYudbMastersStr()
 {
-    LOG(INFO) << masterIp << " yugabyteDeploy start deploy";
-    execCmd2Host("pacman -Syu --noconfirm");
-    execCmd2Host("pacman -Sy");
-    installComponent("python");
-    installComponent("wget");
-    installComponent("curl");
-    std::string cmd = "wget https://downloads.yugabyte.com/releases/2.21.1.0/yugabyte-2.21.1.0-b271-el8-aarch64.tar.gz;";
-    std::string tarCmd = "tar xvfz yugabyte-2.21.1.0-b271-el8-aarch64.tar.gz;";
-    std::string system = execCmd2Host("uname -m");
-    LOG(INFO) << masterIp << " system is " << system;
-    if (system.find("x86") == 0)
+    std::vector<std::string> masterVec = JsonSingleton::getInstance().getYudbMasters();
+    std::string ret = "";
+    int i = 0;
+    for (i; i < masterVec.size(); i++)
     {
-        LOG(INFO) << system;
-        cmd = "wget https://downloads.yugabyte.com/releases/2.21.1.0/yugabyte-2.21.1.0-b271-linux-x86_64.tar.gz;";
-        tarCmd = "tar xvfz yugabyte-2.21.1.0-b271-linux-x86_64.tar.gz;";
+        ret += masterVec[i] + ":7100" + (i == masterVec.size() - 1 ? "" : ","); // default port
+        LOG(INFO) << "master" + i << " is " << ret;
     }
-    cmd += tarCmd;
-    execCmd2Host(cmd.c_str());
-    cmd = "cd /root/yugabyte-2.21.1.0/ && ./bin/post_install.sh;";
-    execCmd2Host(cmd.c_str());
-    cmd = "mkdir /home/centos && mkdir /home/centos/disk1;";
-    cmd += "mkdir /home/centos/disk2;";
-    execCmd2Host(cmd.c_str());
-    LOG(INFO) << "yugabyteDeploy create and start master node";
-    // create and start master node
-    cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-master --master_addresses {}:7100 --rpc_bind_addresses {}  --fs_data_dirs \" /home/centos/disk1, /home/centos/disk2\" --placement_cloud aws --placement_region us-west --placement_zone us-west-2a --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-master.out &",
-                      masterIp, masterIp);
-    execCmd2Host(cmd.c_str());
-    // create and start tserver nodes
-    LOG(INFO) << "yugabyteDeploy create and start tserver node";
-    for (auto &ip : tserverIps)
+    return ret;
+}
+
+std::vector<YudbDeployCmd> ExecSingleton::getYudbClusterDeployCmds()
+{
+    std::vector<YudbDeployCmd> cmds;
+    YudbDeployCmd cmd;
+    std::string ip;
+    std::string masters;
+    for (int i = 0; i < _hostInfos.size(); i++)
     {
-        LOG(INFO) << "start tserver node ip is " << ip;
-        cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-tserver\
-         --tserver_master_addrs {}:7100\
-         --rpc_bind_addresses {}\
-         --enable_ysql\
-         --pgsql_proxy_bind_address {}:5433\
-         --cql_proxy_bind_address {}:9042\
-         --fs_data_dirs \"/home/centos/disk1,/home/centos/disk2\"\
-         --placement_cloud aws\
-         --placement_region us-west\
-         --placement_zone us-west-2a\
-         --leader_failure_max_missed_heartbeat_periods 10 >& /home/centos/disk1/yb-tserver.out &",
-                          masterIp, ip, ip, ip);
-        execCmd2Host(cmd.c_str());
+        ip = _hostInfos[i]["ip"];
+        masters += ip + ":7100 ";
     }
-    /*
-     * set master stategy:
-     * ./bin/yb-admin: a YugabyteDB manage tool
-     * --master_addresses: specifies the address and port of the master node
-     * modify_placement_info: example Modify the cluster placement policy
-     * this line defines the new placement policy. Each entry is composed of cloud providers, regions, and availability zones
-     * this parameter defines the number of copies required for each placement area
-     */
-    cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-admin \
-    --master_addresses {}:7100 \
-    modify_placement_info \
-    aws.us-west.us-west-2a, aws.us-east-1.us-east-1a, aws.ap-northeast-1.ap-northeast-1a \
-    3",
-                      masterIp);
+
+    for (int i = 0; i < _hostInfos.size(); i++)
+    {
+        ip = _hostInfos[i]["ip"];
+        cmd.master = std::format(YB_MASTER_CMD, masters, ip);
+        cmd.tserver = std::format(YB_TSERVER_CMD, masters, ip, ip, ip);
+        cmds.push_back(cmd);
+    }
+    return cmds;
+}
+
+void ExecSingleton::yudbDirectDeploy(std::string master)
+{
+    installYudb();
+    JsonSingleton::getInstance().addYudbMasters(_hostInfos);
+    std::vector<YudbDeployCmd> cmds = getYudbClusterDeployCmds();
+    for (int i = 0; i < cmds.size(); i++)
+    {
+        if (!_sshSession)
+            _sshSession = ssh_new();
+        connect(i < _hostInfos.size() ? _hostInfos[i] : "");
+        execCmd2Host(cmds[i].master.c_str());
+        execCmd2Host(cmds[i].tserver.c_str());
+        freeSession();
+    }
+}
+
+void ExecSingleton::addMaster2Cluster(std::string master)
+{
+    std::string masters = getYudbMastersStr();
+    std::string cmd = std::format(YB_MASTER_CMD, masters, master);
+    execCmd2Host(cmd.c_str(), false);
+    LOG(INFO) << "start admin!!!";
+    JsonSingleton::getInstance().addYudbMaster(master);
+    cmd = std::format("cd /root/yugabyte-2.21.1.0/ && ./bin/yb-admin --master_addresses {} change_master_config ADD_SERVER {} 7100", masters, master);
+    execCmd2Host(cmd.c_str(), false);
+    masters = getYudbMastersStr();
+    cmd = std::format(YB_MASTER_CMD, masters, master);
+    execCmd2Host(cmd.c_str(), false);
+}
+
+void ExecSingleton::removeMasterFromCluster(std::string master)
+{
+    JsonSingleton::getInstance().removeYudbMaster(master);
+    std::string cmd = std::format("cd yugabyte-2.21.1.0/ && ./bin/yb-admin -master_addresses {} change_master_config REMOVE_SERVER {} 7100", getYudbMastersStr(), master);
     execCmd2Host(cmd.c_str());
-    LOG(INFO) << "yugabyteDB deploy finished";
 }
 
 void ExecSingleton::keydbDeploy(std::string port)
@@ -318,7 +341,7 @@ void ExecSingleton::keydbDeploy(std::string port)
     // open nodes
     std::string cmd = std::format("keydb-server --port {}\
          --cluster-enabled yes \
-         --cluster-config-file node01.conf \
+         --cluster-config-file keydbNode.conf \
          --cluster-node-timeout 5000 \
          --appendonly yes \
          --protected-mode no \
@@ -335,6 +358,7 @@ void ExecSingleton::keydbClusterSet(std::vector<std::string> ipPorts)
     {
         cmd += " " + ipPort;
     }
+    LOG(INFO) << cmd;
     execCmd2Host(cmd.c_str());
 }
 
@@ -502,4 +526,9 @@ int ExecSingleton::connect(nlohmann::json infos)
         LOG(ERROR) << "set user password error, result is " << (rc == SSH_AUTH_SUCCESS ? "success" : "fail");
     }
     return rc;
+}
+
+void ExecSingleton::setHostInfos(std::vector<nlohmann::json> hostInfos)
+{
+    _hostInfos = hostInfos;
 }
