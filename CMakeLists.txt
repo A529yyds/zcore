@@ -63,6 +63,7 @@ set(ENV{PKG_CONFIG_PATH} "/usr/lib/pkgconfig/")
 find_package(PkgConfig REQUIRED)
 find_package(LibSSH REQUIRED)
 find_package(glog 0.7.0 REQUIRED)
+find_package(CLI11 REQUIRED)
 pkg_check_modules(CLI11 REQUIRED IMPORTED_TARGET "CLI11>=2.4.1")
 pkg_check_modules(ssh REQUIRED IMPORTED_TARGET "libssh>=0.10.6")
 

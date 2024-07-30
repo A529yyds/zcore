@@ -7,6 +7,7 @@
  * Description: a singleton of json file operation
  */
 
+#pragma once
 #include <glog/logging.h>
 #include "nlohmann/json.hpp"
 
@@ -56,6 +57,26 @@ public:
      * @return {string} the URL of application to be installed
      */
     std::string getCodesAddress(std::string appName);
+    /**
+     * @description: get YugabyteDB masters' IP from config.json
+     * @return {std::vector<std::string>} all YugabyteDB nodes IP
+     */
+    std::vector<std::string> getYudbMasters();
+    /**
+     * @description: add a YugabyteDB master to clusters which including nodes IP from the config.json file
+     * @param {string} newMaster - master IP which is needed to add
+     */
+    void addYudbMaster(std::string newMaster);
+    /**
+     * @description: remove YugabyteDB master node from clusters which including nodes IP from the config.json file
+     * @param {string} master - master IP which is needed to add
+     */
+    void removeYudbMaster(std::string master);
+    /**
+     * @description: add masters to the same cluster
+     * @param {vector<nlohmann::json>} masters - hosts infomation include IP, private key path, password and user name;
+     */
+    void addYudbMasters(std::vector<nlohmann::json> masters);
 
 protected:
     /**
